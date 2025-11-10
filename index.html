@@ -1,149 +1,197 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hệ Thống PCCC 3 Line 15kW (MQTT)</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Segoe UI',sans-serif;color:#fff;background:#222;}
-.container{max-width:1100px;margin:20px auto;padding:20px;}
-.header{text-align:center;margin-bottom:20px;}
-.header h1{font-size:28px;}
-.tabs{display:flex;justify-content:center;margin-bottom:20px;flex-wrap:wrap;}
-.tab-btn{padding:10px 20px;margin:5px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer;}
-.tab-btn.active{background:#d32f2f;}
-.tab-content{display:none;padding:20px;background:rgba(255,255,255,0.1);border-radius:12px;margin-bottom:15px;}
-.tab-content.active{display:block;}
-.line-card{background:rgba(0,0,0,0.4);padding:15px;margin:10px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;}
-.stat{background:rgba(255,255,255,0.2);padding:10px;border-radius:8px;text-align:center;margin:5px;}
-.btn{padding:10px 20px;margin:5px;font-size:16px;border:none;border-radius:8px;cursor:pointer;}
-.on{background:#4caf50;color:white;}
-.off{background:#f44336;color:white;}
-.alarm{background:#ff9800;animation:blink 1s infinite;}
-.fan{width:50px;height:50px;transition:transform 0.2s linear;}
-.spin{animation:spin 1s linear infinite;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.5}}
-@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PCCC 3 Line - Giám Sát Real-time</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    :root {
+      --primary: #d32f2f;
+      --success: #4caf50;
+      --bg: #f8f9fa;
+      --card: white;
+    }
+    body { 
+      font-family: 'Segoe UI', sans-serif; 
+      background: var(--bg); 
+      margin: 0; 
+      padding: 20px; 
+      color: #333;
+    }
+    .container { 
+      max-width: 900px; 
+      margin: auto; 
+      background: var(--card); 
+      border-radius: 16px; 
+      padding: 24px; 
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1); 
+    }
+    h1 { 
+      text-align: center; 
+      color: var(--primary); 
+      margin-bottom: 10px; 
+      font-size: 1.8em;
+    }
+    .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 0.95em; }
+
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 20px 0;
+    }
+    .sensor-card {
+      background: #f0f4f8;
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 1.4em;
+      font-weight: 600;
+    }
+    .sensor-label { font-size: 0.9em; color: #555; display: block; margin-bottom: 4px; }
+    .value { font-size: 1.6em; color: var(--primary); }
+
+    .lines {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .line {
+      flex: 1;
+      max-width: 140px;
+      padding: 16px;
+      text-align: center;
+      border-radius: 12px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    .line.off { background: #e0e0e0; color: #666; }
+    .line.on { background: var(--success); color: white; }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-on { background: var(--success); color: white; }
+    .btn-off { background: #f44336; color: white; }
+    button:hover { transform: translateY(-2px); }
+
+    .status {
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+    .status.connected { background: #e8f5e8; color: #2e7d32; }
+    .status.disconnected { background: #ffebee; color: #c62828; }
+
+    @media (max-width: 600px) {
+      .sensor-grid { grid-template-columns: 1fr; }
+      .lines { flex-direction: column; align-items: center; }
+      .controls { flex-direction: column; }
+      button { width: 100%; }
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <div class="header"><h1>Hệ Thống Điều Khiển Giám Sát PCCC 3 Line 15kW</h1></div>
+  <div class="container">
+    <h1>Hệ Thống PCCC 3 Line 15kW</h1>
+    <p class="subtitle">Giám sát & Điều khiển Real-time qua MQTT</p>
 
-  <div class="tabs">
-    <button class="tab-btn active" onclick="openTab('monitor')">GIÁM SÁT</button>
-    <button class="tab-btn" onclick="openTab('control')">ĐIỀU KHIỂN</button>
-    <button class="tab-btn" onclick="openTab('alert')">CẢNH BÁO</button>
-    <button class="tab-btn" onclick="openTab('settings')">CÀI ĐẶT</button>
-  </div>
-
-  <!-- GIÁM SÁT -->
-  <div id="monitor" class="tab-content active">
-    <div class="line-card"><h3>Line 1</h3><div class="grid" id="l1"></div></div>
-    <div class="line-card"><h3>Line 2</h3><div class="grid" id="l2"></div></div>
-    <div class="line-card"><h3>Line 3</h3><div class="grid" id="l3"></div></div>
-    <div class="stat">Nhiệt độ: <span id="temp">--</span>°C | Độ ẩm: <span id="hum">--</span>%</div>
-  </div>
-
-  <!-- ĐIỀU KHIỂN -->
-  <div id="control" class="tab-content">
-    <div class="line-card">
-      <div>
-        <h3>Line 1</h3>
-        <button class="btn on" onclick="sendCommand(1,'on')">BẬT</button>
-        <button class="btn off" onclick="sendCommand(1,'off')">TẮT</button>
+    <div class="sensor-grid">
+      <div class="sensor-card">
+        <span class="sensor-label">Nhiệt độ</span>
+        <span class="value" id="temp">--</span>°C
       </div>
-      <img id="fan1" src="https://img.icons8.com/?color=000000&format=png&id=YL8s-cZFMgGT&size=100" class="fan">
-    </div>
-    <div class="line-card">
-      <div>
-        <h3>Line 2</h3>
-        <button class="btn on" onclick="sendCommand(2,'on')">BẬT</button>
-        <button class="btn off" onclick="sendCommand(2,'off')">TẮT</button>
+      <div class="sensor-card">
+        <span class="sensor-label">Độ ẩm</span>
+        <span class="value" id="hum">--</span>%
       </div>
-      <img id="fan2" src="https://img.icons8.com/?color=000000&format=png&id=YL8s-cZFMgGT&size=100" class="fan">
     </div>
-    <div class="line-card">
-      <div>
-        <h3>Line 3</h3>
-        <button class="btn on" onclick="sendCommand(3,'on')">BẬT</button>
-        <button class="btn off" onclick="sendCommand(3,'off')">TẮT</button>
-      </div>
-      <img id="fan3" src="https://img.icons8.com/?color=000000&format=png&id=YL8s-cZFMgGT&size=100" class="fan">
+
+    <div class="lines">
+      <div class="line off" id="line1">Line 1: OFF</div>
+      <div class="line off" id="line2">Line 2: OFF</div>
+      <div class="line off" id="line3">Line 3: OFF</div>
     </div>
+
+    <div class="controls">
+      <button class="btn-on" onclick="send('line1on')">Bật Line 1</button>
+      <button class="btn-on" onclick="send('line2on')">Bật Line 2</button>
+      <button class="btn-on" onclick="send('line3on')">Bật Line 3 (Nhanh)</button>
+      <button class="btn-off" onclick="send('line1off')">Tắt Tất Cả</button>
+    </div>
+
+    <div class="status disconnected" id="status">MQTT: Đang kết nối...</div>
   </div>
 
-  <!-- CẢNH BÁO -->
-  <div id="alert" class="tab-content">
-    <div class="stat alarm" id="alarm-msg">Không có cảnh báo</div>
-  </div>
+  <script>
+    const client = mqtt.connect('wss://d57b2c70e92640f7bc8f878a251d4666.s1.eu.hivemq.cloud:8884/mqtt', {
+      username: 'ADMIN1',
+      password: 'Quang123456',
+      reconnectPeriod: 2000
+    });
 
-  <!-- CÀI ĐẶT -->
-  <div id="settings" class="tab-content">
-    <div class="stat">Kết nối MQTT HiveMQ</div>
-    <div class="stat">Cập nhật real-time</div>
-  </div>
-</div>
-
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-<script>
-let client;
-const topicStatus = "pccc/3line/status";
-const topicControl = "pccc/3line/control";
-
-function connectMQTT() {
-    client = mqtt.connect("wss://broker.hivemq.com:8000/mqtt");
+    const statusEl = document.getElementById('status');
 
     client.on('connect', () => {
-        console.log('✅ MQTT Connected');
-        client.subscribe(topicStatus, (err)=> {
-            if(!err) console.log('Subscribed to status topic');
-        });
+      statusEl.textContent = 'MQTT: Đã kết nối!';
+      statusEl.className = 'status connected';
+      client.subscribe('pccc/3line/status');
     });
 
     client.on('message', (topic, message) => {
-        if(topic === topicStatus){
-            const data = JSON.parse(message.toString());
-            updateUI(data);
-        }
+      try {
+        const data = JSON.parse(message.toString());
+        
+        document.getElementById('temp').textContent = data.temp?.toFixed(1) ?? '--';
+        document.getElementById('hum').textContent = data.hum?.toFixed(1) ?? '--';
+
+        data.lines.forEach((line, i) => {
+          const el = document.getElementById(`line${i+1}`);
+          if (line.state) {
+            el.className = 'line on';
+            el.textContent = `Line ${i+1}: ON`;
+          } else {
+            el.className = 'line off';
+            el.textContent = `Line ${i+1}: OFF`;
+          }
+        });
+      } catch (e) {
+        console.error("Lỗi parse JSON:", e);
+      }
     });
 
-    client.on('error', (err) => console.error('MQTT Error:', err));
-}
-
-function sendCommand(line, cmd){
-    if(client && client.connected){
-        client.publish(topicControl, `line:${line}:${cmd}`);
+    function send(cmd) {
+      client.publish('pccc/3line/control', cmd);
+      console.log("Đã gửi:", cmd);
     }
-}
 
-function updateUI(data){
-    ['l1','l2','l3'].forEach((id,i)=>{
-        const l = data.lines[i];
-        document.getElementById(id).innerHTML = `
-            <div class="stat">Trạng thái: <strong>${l.state?'BẬT':'TẮT'}</strong></div>
-        `;
-        const fan = document.getElementById('fan'+(i+1));
-        if(l.state) fan.classList.add('spin'); else fan.classList.remove('spin');
+    client.on('error', (err) => {
+      statusEl.textContent = 'MQTT: Lỗi kết nối!';
+      statusEl.className = 'status disconnected';
+      console.error(err);
     });
-    document.getElementById('temp').innerText = data.temp.toFixed(1);
-    document.getElementById('hum').innerText = data.hum.toFixed(1);
 
-    const alarm = document.getElementById('alarm-msg');
-    const anyAlarm = data.lines.some(l=>l.state && data.temp>50); // ví dụ cảnh báo nếu nhiệt cao
-    alarm.textContent = anyAlarm ? 'CẢNH BÁO: Quá tải / Nhiệt độ cao!' : 'Hệ thống an toàn';
-    if(anyAlarm) alarm.classList.add('alarm'); else alarm.classList.remove('alarm');
-}
-
-function openTab(tab){
-    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-    document.getElementById(tab).classList.add('active');
-    document.querySelector(`button[onclick="openTab('${tab}')"]`).classList.add('active');
-}
-
-connectMQTT();
-</script>
+    client.on('offline', () => {
+      statusEl.textContent = 'MQTT: Mất kết nối...';
+      statusEl.className = 'status disconnected';
+    });
+  </script>
 </body>
 </html>
