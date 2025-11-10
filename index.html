@@ -110,8 +110,8 @@
 </head>
 <body>
   <div class="container">
-    <h1>Hệ Thống PCCC 3 Line 15kW</h1>
-    <p class="subtitle">Giám sát & Điều khiển Real-time qua MQTT</p>
+    <h1>Hệ Thống Điều Khiển Giám Sát PCCC</h1>
+    <p class="subtitle">Hệ Thống Giám Sát Điều Khiển Hệ Thống PCCC</p>
 
     <div class="sensor-grid">
       <div class="sensor-card">
@@ -131,10 +131,10 @@
     </div>
 
     <div class="controls">
-      <button class="btn-on" onclick="send('FAN1')">FAN1 - 50Hz</button>
-      <button class="btn-on" onclick="send('FAN2')">FAN2 - 20Hz</button>
-      <button class="btn-on" onclick="send('FAN3')">FAN3 - 10Hz</button>
-      <button class="btn-off" onclick="send('FANOFF')">Tắt FAN</button>
+      <button class="btn-on" onclick="send('FAN1')">ON_FAN1</button>
+      <button class="btn-on" onclick="send('FAN2')">ON_FAN2</button>
+      <button class="btn-on" onclick="send('FAN3')">ON_FAN3</button>
+      <button class="btn-off" onclick="send('FANOFF')">OFF_FAN</button>
     </div>
 
     <div class="status disconnected" id="status">MQTT: Đang kết nối...</div>
